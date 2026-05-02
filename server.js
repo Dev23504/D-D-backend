@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import Razorpay from "razorpay";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import products from "./models/products.js";
 
 dotenv.config();
 
@@ -12,48 +13,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose
-  .connect(process.env.MONGO_URL)
+app.use("/images", express.static("public/images"));
+
+mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log(err));
 
-const Product = mongoose.model(
-  "Product",
-  new mongoose.Schema({
-    name: String,
-    price: Number,
-    image: String,
-    category: String,
-    discount: Number
-  })
-);
+const Product = mongoose.model("Product", new mongoose.Schema({
+  name: String,
+  price: Number,
+  image: String,
+  category: String,
+  discount: Number
+}));
 
-const User = mongoose.model(
-  "User",
-  new mongoose.Schema({
-    name: String,
-    email: String,
-    password: String,
-    phone: String,
-    address: String,
-    wishlist: { type: Array, default: [] }
-  })
-);
+const User = mongoose.model("User", new mongoose.Schema({
+  name: String,
+  email: String,
+  password: String,
+  phone: String,
+  address: String,
+  wishlist: { type: Array, default: [] }
+}));
 
-const Order = mongoose.model(
-  "Order",
-  new mongoose.Schema({
-    userId: String,
-    name: String,
-    phone: String,
-    address: String,
-    products: Array,
-    totalAmount: Number,
-    paymentId: String,
-    orderId: String,
-    status: { type: String, default: "pending" }
-  })
-);
+const Order = mongoose.model("Order", new mongoose.Schema({
+  userId: String,
+  name: String,
+  phone: String,
+  address: String,
+  products: Array,
+  totalAmount: Number,
+  paymentId: String,
+  orderId: String,
+  status: { type: String, default: "pending" }
+}));
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -72,6 +65,12 @@ const auth = (req, res, next) => {
     res.status(401).json({ message: "Invalid token" });
   }
 };
+
+app.get("/seed", async (req, res) => {
+  await Product.deleteMany({});
+  const inserted = await Product.insertMany(products);
+  res.json({ message: "Seed Success", total: inserted.length });
+});
 
 app.get("/products", async (req, res) => {
   const { category, search } = req.query;
