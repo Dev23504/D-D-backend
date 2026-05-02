@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import Razorpay from "razorpay";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import products from "./models/products.js";
+import products from "./data/products.js";
 
 dotenv.config();
 
