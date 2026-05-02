@@ -5,7 +5,6 @@ import dotenv from "dotenv";
 import Razorpay from "razorpay";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import products from "./data/products.js";
 
 dotenv.config();
 
@@ -13,31 +12,48 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URL || "mongodb://127.0.0.1:27017/dnd_store");
+mongoose
+  .connect(process.env.MONGO_URL)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.log(err));
 
-const Product = mongoose.model("Product", new mongoose.Schema({
-  name: String,
-  price: Number,
-  image: String,
-  category: String,
-  discount: Number
-}));
+const Product = mongoose.model(
+  "Product",
+  new mongoose.Schema({
+    name: String,
+    price: Number,
+    image: String,
+    category: String,
+    discount: Number
+  })
+);
 
-const User = mongoose.model("User", new mongoose.Schema({
-  name: String,
-  email: String,
-  password: String,
-  phone: String,
-  address: String,
-  wishlist: { type: Array, default: [] }
-}));
+const User = mongoose.model(
+  "User",
+  new mongoose.Schema({
+    name: String,
+    email: String,
+    password: String,
+    phone: String,
+    address: String,
+    wishlist: { type: Array, default: [] }
+  })
+);
 
-const Order = mongoose.model("Order", new mongoose.Schema({
-  userId: String,
-  products: Array,
-  totalAmount: Number,
-  status: { type: String, default: "pending" }
-}));
+const Order = mongoose.model(
+  "Order",
+  new mongoose.Schema({
+    userId: String,
+    name: String,
+    phone: String,
+    address: String,
+    products: Array,
+    totalAmount: Number,
+    paymentId: String,
+    orderId: String,
+    status: { type: String, default: "pending" }
+  })
+);
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -46,23 +62,16 @@ const razorpay = new Razorpay({
 
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
-
   if (!token) return res.status(401).json({ message: "No token" });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
     req.userId = decoded.id;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ message: "Invalid token" });
   }
 };
-
-app.get("/seed", async (req, res) => {
-  await Product.deleteMany({});
-  const inserted = await Product.insertMany(products);
-  res.json({ message: "Seed Success", total: inserted.length });
-});
 
 app.get("/products", async (req, res) => {
   const { category, search } = req.query;
@@ -108,11 +117,9 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
-
   if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
   const isMatch = await bcrypt.compare(req.body.password, user.password);
-
   if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
   const token = jwt.sign(
@@ -129,26 +136,14 @@ app.get("/profile", auth, async (req, res) => {
   res.json(user);
 });
 
-app.get("/user/:id", async (req, res) => {
-  const user = await User.findById(req.params.id);
-  res.json({ user });
-});
-
-app.put("/user/:id", async (req, res) => {
-  const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json({ user });
-});
-
 app.post("/wishlist/:userId", async (req, res) => {
   const user = await User.findById(req.params.userId);
-  if (!user) return res.status(404).json({ message: "User not found" });
-
   const item = req.body;
 
-  const exists = user.wishlist.find(p => p._id === item._id);
+  const exists = user.wishlist.find((p) => p._id === item._id);
 
   if (exists) {
-    user.wishlist = user.wishlist.filter(p => p._id !== item._id);
+    user.wishlist = user.wishlist.filter((p) => p._id !== item._id);
   } else {
     user.wishlist.push(item);
   }
@@ -185,4 +180,4 @@ app.post("/create-order", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, () => console.log("Server running on " + PORT));
